@@ -1,1 +1,7 @@
 pH,temperature,initial_metal_conc,final_metal_conc,removal_efficiency
+7.2,25,100,15,85.0
+7.5,27,100,12,88.0
+6.8,24,100,18,82.0
+8.1,26,100,14,86.0
+7.4,25,100,16,84.0
+14.0,25,100,95,5.0

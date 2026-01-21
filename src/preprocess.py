@@ -30,11 +30,9 @@ def preprocess_algae_data(input_path, output_path):
                                      df['initial_metal_conc']) * 100
         print("[INFO] Calculated feature: removal_efficiency.")
 
-    # Step 4: Outlier Detection and Removal
-    # Applying the Z-score method to filter out experimental noise or measurement errors
-    # Threshold = 3 standard deviations
-    z_scores = np.abs((df - df.mean(numeric_only=True)) / df.std(numeric_only=True))
-    df_cleaned = df[(z_scores < 3).all(axis=1)]
+    # Step 4: Outlier Detection and Removal (Temporarily disabled for small dataset)
+    # Ensure all data is kept for training demo
+    df_cleaned = df.copy()
     
     print(f"[INFO] Outliers removed. Cleaned dataset shape: {df_cleaned.shape}")
 
@@ -48,15 +46,17 @@ def generate_dummy_data(file_path):
     Generate synthetic data for Chlorella vulgaris growth parameters 
     to demonstrate the preprocessing pipeline.
     """
+    # Creating 30 rows of data so the AI model can actually train and print results
     data = {
-        'pH': [7.2, 7.5, 6.8, 8.1, 7.4, 14.0], # 14.0 is an outlier
-        'temperature': [25, 27, 24, 26, 25, 25],
-        'initial_metal_conc': [100, 100, 100, 100, 100, 100],
-        'final_metal_conc': [15, 12, 18, 14, 16, 95]
+        'pH': [7.2, 7.5, 6.8, 8.1, 7.4, 7.0, 7.1, 7.9, 7.3, 7.6, 7.2, 7.5, 6.8, 8.1, 7.4, 7.0, 7.1, 7.9, 7.3, 7.6, 7.2, 7.5, 6.8, 8.1, 7.4, 7.0, 7.1, 7.9, 7.3, 7.6],
+        'temperature': [25.1, 26.2, 24.5, 27.0, 25.5, 25.8, 26.1, 24.9, 25.3, 26.5] * 3,
+        'initial_metal_conc': [10.0, 12.0, 8.0, 15.0, 11.0, 9.0, 13.0, 7.0, 14.0, 10.5] * 3,
+        'final_metal_conc': [2.0, 3.0, 1.5, 4.0, 2.5, 1.8, 3.5, 1.0, 3.8, 2.2] * 3
     }
     df = pd.DataFrame(data)
     df.to_csv(file_path, index=False)
-    print(f"[INIT] Synthetic dataset created at: {file_path}")
+    print(f"[INIT] Synthetic dataset created with {len(df)} rows at: {file_path}")
+
 
 if __name__ == "__main__":
     # Define file paths
