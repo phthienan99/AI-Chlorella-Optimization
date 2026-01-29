@@ -1,2 +1,16 @@
+# Python virtual environment
 venv/
+.env/
+__pycache__/
+*.pyc
+
+# OS files
 .DS_Store
+
+# Raw / intermediate data (not redistributed)
+data/chlorella_raw.csv
+data/raw/
+data/*.xlsx
+
+# Large or generated results
+results/models/

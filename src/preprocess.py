@@ -2,70 +2,92 @@ import pandas as pd
 import numpy as np
 import os
 
+# ==============================
+# COLUMN NAME MAPPING
+# ==============================
+
+COLUMN_MAP = {
+    "pH": "pH",
+    "Light": "Light (μmol/m²/s)",
+    "Temperature": "Temp (°C)",
+    "TN0": "TN₀ (mg/L)",
+    "TP0": "TP₀ (mg/L)",
+    "COD0": "COD₀",
+    "Time": "Cultivation Time (days)",
+    "N_rem": "N Removal Efficiency (%)",
+    "P_rem": "P Removal Efficiency (%)",
+    "COD_rem": "COD rem (%)",
+    "Biomass": "Biomass Yield (g/L)",
+    "Source": "Source"
+}
+
+INPUT_FEATURES = [
+    "pH",
+    "Light (μmol/m²/s)",
+    "Temp (°C)",
+    "TN₀ (mg/L)",
+    "TP₀ (mg/L)",
+    "COD₀",
+    "Cultivation Time (days)"
+]
+
+OUTPUT_TARGETS = [
+    "N Removal Efficiency (%)",
+    "P Removal Efficiency (%)",
+    "COD rem (%)",
+    "Biomass Yield (g/L)"
+]
+
 def preprocess_algae_data(input_path, output_path):
-    """
-    Standardize and clean microalgae growth data for Machine Learning models.
-    This pipeline ensures data integrity for high-fidelity predictive modeling.
-    """
+
+    # Check if the input file exists
     if not os.path.exists(input_path):
-        print(f"[ERROR] Source file not found at: {input_path}")
-        return None
+        raise FileNotFoundError(f"Raw data not found: {input_path}")
 
-    # Step 1: Load the dataset
-    # We use pandas for efficient data frame manipulation
+    # Load raw data from CSV file
     df = pd.read_csv(input_path)
-    print(f"[INFO] Initial dataset loaded. Shape: {df.shape}")
+    print(f"[INFO] Raw dataset loaded: {df.shape}")
 
-    # Step 2: Handle Missing Values (Data Imputation)
-    # Using mean imputation to maintain statistical consistency in biological datasets
-    if df.isnull().values.any():
-        df = df.fillna(df.mean(numeric_only=True))
-        print("[INFO] Missing values imputed with column mean.")
+    # Rename columns to standardized scientific schema
+    df = df.rename(columns=COLUMN_MAP)
 
-    # Step 3: Feature Engineering (Biosorption Efficiency)
-    # Calculate the removal efficiency of heavy metals as a key performance indicator (KPI)
-    # Formula: ((Initial - Final) / Initial) * 100
-    if 'initial_metal_conc' in df.columns and 'final_metal_conc' in df.columns:
-        df['removal_efficiency'] = ((df['initial_metal_conc'] - df['final_metal_conc']) / 
-                                     df['initial_metal_conc']) * 100
-        print("[INFO] Calculated feature: removal_efficiency.")
+    # Drop the 'Metal' and 'Source' columns for model input (but keep 'Source' for documentation)
+    if "Metal" in df.columns:
+        df = df.drop(columns=["Metal"])
+    if "Source" in df.columns:
+        df = df.drop(columns=["Source"])
 
-    # Step 4: Outlier Detection and Removal (Temporarily disabled for small dataset)
-    # Ensure all data is kept for training demo
-    df_cleaned = df.copy()
-    
-    print(f"[INFO] Outliers removed. Cleaned dataset shape: {df_cleaned.shape}")
+    # Ensure all required columns exist, and if missing, add them with NaN values
+    for col in INPUT_FEATURES + OUTPUT_TARGETS:
+        if col not in df.columns:
+            df[col] = np.nan
 
-    # Step 5: Export processed data for AI Training
-    df_cleaned.to_csv(output_path, index=False)
-    print(f"[SUCCESS] Processed data saved to: {output_path}")
-    return df_cleaned
+    # Keep only the necessary columns (input features and output targets)
+    df = df[INPUT_FEATURES + OUTPUT_TARGETS]
 
-def generate_dummy_data(file_path):
-    """
-    Generate synthetic data for Chlorella vulgaris growth parameters 
-    to demonstrate the preprocessing pipeline.
-    """
-    # Creating 30 rows of data so the AI model can actually train and print results
-    data = {
-        'pH': [7.2, 7.5, 6.8, 8.1, 7.4, 7.0, 7.1, 7.9, 7.3, 7.6, 7.2, 7.5, 6.8, 8.1, 7.4, 7.0, 7.1, 7.9, 7.3, 7.6, 7.2, 7.5, 6.8, 8.1, 7.4, 7.0, 7.1, 7.9, 7.3, 7.6],
-        'temperature': [25.1, 26.2, 24.5, 27.0, 25.5, 25.8, 26.1, 24.9, 25.3, 26.5] * 3,
-        'initial_metal_conc': [10.0, 12.0, 8.0, 15.0, 11.0, 9.0, 13.0, 7.0, 14.0, 10.5] * 3,
-        'final_metal_conc': [2.0, 3.0, 1.5, 4.0, 2.5, 1.8, 3.5, 1.0, 3.8, 2.2] * 3
-    }
-    df = pd.DataFrame(data)
-    df.to_csv(file_path, index=False)
-    print(f"[INIT] Synthetic dataset created with {len(df)} rows at: {file_path}")
+    # Remove rows where all output targets are NaN
+    df = df.dropna(how="all", subset=OUTPUT_TARGETS)
+    print(f"[INFO] After filtering unusable rows: {df.shape}")
+
+    # Impute missing values in input features with the median of the respective column
+    for col in INPUT_FEATURES:
+        # Only fill NaN for numerical columns (not string columns)
+        if pd.api.types.is_numeric_dtype(df[col]):
+            # Ensure median is calculated only on numerical values (ignore strings)
+            df[col] = df[col].apply(pd.to_numeric, errors='coerce')
+            df[col] = df[col].fillna(df[col].median())
+
+    # Save the cleaned dataset to a new CSV file
+    df.to_csv(output_path, index=False)
+    print(f"[SUCCESS] Cleaned dataset saved: {output_path}")
+
+    return df
 
 
 if __name__ == "__main__":
-    # Define file paths
-    RAW_DATA = 'data/chlorella_raw.csv'
-    PROCESSED_DATA = 'data/chlorella_cleaned.csv'
-
-    # Create dummy data if no real dataset is present in the /data folder
-    if not os.path.exists(RAW_DATA):
-        generate_dummy_data(RAW_DATA)
-
-    # Execute the preprocessing pipeline
-    preprocess_algae_data(RAW_DATA, PROCESSED_DATA)
+    # Define input and output file paths
+    RAW_DATA = "data/chlorella_raw.csv"
+    CLEAN_DATA = "data/chlorella_cleaned.csv"
+    
+    # Run the preprocessing function
+    preprocess_algae_data(RAW_DATA, CLEAN_DATA)
